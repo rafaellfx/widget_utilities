@@ -1,39 +1,71 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# 🧩 widget_utilities
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+**Coleção de widgets customizados reutilizáveis** para o dia a dia do desenvolvimento Flutter.  
+O objetivo deste package é acelerar o desenvolvimento com componentes práticos, reutilizáveis e baseados em boas práticas.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
+---
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+## 🚀 Objetivo
 
-## Features
+O **`widget_utilities`** nasceu da necessidade de **evitar repetição de código** e **padronizar componentes visuais** usados em diversos projetos Flutter.  
+Aqui você encontra widgets prontos para uso, leves e fáceis de integrar com uns adicionais.  
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+---
 
-## Getting started
+## 📦 Instalação
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
-## Usage
-
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
-```dart
-const like = 'sample';
+Adicione a dependência no seu `pubspec.yaml`:
+```yaml
+dependencies:
+  widget_utilities: ^0.1.0
 ```
 
-## Additional information
+## ⚙️ Importação
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+```dart
+import 'package:widget_utilities/widget_utilities.dart';
+
+```
+
+## 🔄 Exemplo de uso
+
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:widget_utilities/widget_utilities.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  Future<void> _onRefresh() async {
+    await Future.delayed(const Duration(seconds: 2));
+    debugPrint('Página atualizada!');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('widget_utilities Example')),
+        body: RefreshUniversal(
+          onRefresh: _onRefresh,
+          child: const Center(
+            child: Text('Puxe para atualizar 🚀'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+## 🧱 Widgets disponíveis
+
+| Widget | Descrição | Exemplo |
+|--------|------------|----------|
+| **RefreshUniversal** | Widget de *pull-to-refresh* que funciona com ou sem scroll. Ideal para qualquer tipo de tela. | `RefreshUniversal(child: Container(), onRefresh: ...)` |
+| *(Em breve)* **ContainerBorderComponent** | Um container mais robusto com algumas facilidades de estilização. | - |
+| *(Em breve)* **CheckboxCustom** | Checkbox que adiciona o texto com ação de seleção. | - |
+
