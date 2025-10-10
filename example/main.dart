@@ -15,9 +15,7 @@ class MyApp extends StatelessWidget {
         appBar: AppBar(title: const Text('Widget Utilities')),
         body: RefreshUniversal(
           child: Container(),
-          onRefresh: () async {
-            print('Refresh!');
-          },
+          onRefresh: () async {},
         ),
       ),
     );
