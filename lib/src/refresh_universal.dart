@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+/// RefreshUniversal é um [StatelessWidget] que utiliza dos recursos
+/// do [RefreshIndicator] com uma pequena diferença, permite adicionar
+/// um filho (child) sem necessitar de um Scroll, ou seja adiciona
+///  o pull to refresh em qual quer widget.
+
 class RefreshUniversal extends StatelessWidget {
   final Widget child;
   final Future<void> Function() onRefresh;
