@@ -3,6 +3,8 @@ description: "Um package que utiliza diversos widgests customizados para facilit
 version: 0.0.1
 homepage: https://github.com/rafaellfx/widget_utilities
 
+license: BSD-3-Clause
+
 environment:
   sdk: ^3.9.2
   flutter: ">=1.17.0"
@@ -10,6 +12,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+
 
 dev_dependencies:
   flutter_test:
