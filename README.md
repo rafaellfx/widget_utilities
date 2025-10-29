@@ -17,7 +17,7 @@ Aqui você encontra widgets prontos para uso, leves e fáceis de integrar com un
 Adicione a dependência no seu `pubspec.yaml`:
 ```yaml
 dependencies:
-  widget_utilities: ^0.1.0
+  widget_utilities: ^0.1.4
 ```
 
 ## ⚙️ Importação
