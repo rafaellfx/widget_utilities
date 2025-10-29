@@ -1,6 +1,6 @@
 name: widget_utilities
 description: "Um package que utiliza diversos widgests customizados para facilitar no criação do layout da aplicação."
-version: 0.0.2
+version: 0.0.3
 homepage: https://github.com/rafaellfx/widget_utilities
 
 license: BSD-3-Clause
