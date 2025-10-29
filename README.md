@@ -61,63 +61,78 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-## 🗓️ Exemplo simples com o DatePickerUniversal
+## 🗓️ Exemplo simples com o DatePickerUniversal e RefreshUniversal
+
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:widget_utilities/widget_utilities.dart';
 
-void main() => runApp(const MyApp());
+void main() => runApp(const AppRoot());
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      supportedLocales: const [Locale('en', 'US'), Locale('pt', 'BR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      home: const HomePage(),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   Future<void> _onRefresh() async {
     await Future.delayed(const Duration(seconds: 2));
-    debugPrint('Página atualizada!');
   }
 
   Future<void> _showDatePicker(BuildContext context) async {
-    final DateTime? date = await DatePickerUniversal.show(
+    final date = await DatePickerUniversal.show(
       context,
+      locale: const Locale('pt', 'BR'),
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
-      addButtonToday: true, // Ativa o botão "Hoje"
+      addButtonToday: true,
     );
 
-    if (date != null) {
-      debugPrint('Data selecionada: $date');
-    } else {
-      debugPrint('Seleção cancelada');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Selecionado: $date')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('widget_utilities Example')),
-        body: RefreshUniversal(
-          onRefresh: _onRefresh,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Puxe para atualizar 🚀'),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => _showDatePicker(context),
-                  child: const Text('Abrir DatePickerUniversal'),
-                ),
-              ],
-            ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('widget_utilities Example')),
+      body: RefreshUniversal(
+        onRefresh: _onRefresh,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Puxe para atualizar 🚀'),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _showDatePicker(context),
+                child: const Text('Abrir DatePickerUniversal'),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
 ```
 
 

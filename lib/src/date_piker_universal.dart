@@ -56,8 +56,8 @@ const double _kMaxTextScaleFactor = 1.3;
 class DatePickerUniversal {
   DatePickerUniversal._();
 
-  static Future<DateTime?> show({
-    required BuildContext context,
+  static Future<DateTime?> show(
+    BuildContext context, {
     DateTime? initialDate,
     required DateTime firstDate,
     required DateTime lastDate,
@@ -365,7 +365,9 @@ class DatePickerDialog extends StatefulWidget {
     this.switchToInputEntryModeIcon,
     this.switchToCalendarEntryModeIcon,
     this.addButtonToday = true,
-  }) : initialDate = null,
+  }) : initialDate = initialDate == null
+           ? null
+           : DateUtils.dateOnly(initialDate),
        firstDate = DateUtils.dateOnly(firstDate),
        lastDate = DateUtils.dateOnly(lastDate),
        currentDate = DateUtils.dateOnly(currentDate ?? DateTime.now()) {
