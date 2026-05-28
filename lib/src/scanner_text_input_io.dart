@@ -396,6 +396,7 @@ class _ScannerPanelState extends State<_ScannerPanel>
           fit: StackFit.expand,
           children: [
             _buildCameraLayer(),
+            if (_showFocusFrame) const Center(child: _FocusFrameOverlay()),
             const Positioned(
               top: 6,
               left: 0,
@@ -420,6 +421,12 @@ class _ScannerPanelState extends State<_ScannerPanel>
         ),
       ),
     );
+  }
+
+  bool get _showFocusFrame {
+    if (_isInitializing || _initializationError != null) return false;
+    final controller = _cameraController;
+    return controller != null && controller.value.isInitialized;
   }
 
   Widget _buildCameraLayer() {
@@ -468,6 +475,102 @@ class _DragHandle extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FocusFrameOverlay extends StatelessWidget {
+  const _FocusFrameOverlay();
+
+  static const Color _frameColor = Color(0xFFFFD400);
+  static const double _frameWidthFraction = 0.72;
+  static const double _frameAspectRatio = 1.6;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final frameWidth = constraints.maxWidth * _frameWidthFraction;
+        final frameHeight = frameWidth / _frameAspectRatio;
+        return IgnorePointer(
+          child: CustomPaint(
+            size: Size(frameWidth, frameHeight),
+            painter: _FocusFramePainter(color: _frameColor),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FocusFramePainter extends CustomPainter {
+  const _FocusFramePainter({required this.color});
+
+  final Color color;
+
+  static const double _cornerLength = 28;
+  static const double _strokeWidth = 4;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final cornerLength = _cornerLength.clamp(0.0, size.shortestSide / 2);
+
+    // Canto superior esquerdo.
+    canvas.drawLine(
+      const Offset(0, 0),
+      Offset(cornerLength, 0),
+      paint,
+    );
+    canvas.drawLine(
+      const Offset(0, 0),
+      Offset(0, cornerLength),
+      paint,
+    );
+
+    // Canto superior direito.
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(size.width - cornerLength, 0),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(size.width, cornerLength),
+      paint,
+    );
+
+    // Canto inferior esquerdo.
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(cornerLength, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(0, size.height - cornerLength),
+      paint,
+    );
+
+    // Canto inferior direito.
+    canvas.drawLine(
+      Offset(size.width, size.height),
+      Offset(size.width - cornerLength, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width, size.height),
+      Offset(size.width, size.height - cornerLength),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FocusFramePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _CloseButton extends StatelessWidget {
