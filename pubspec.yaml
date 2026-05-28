@@ -1,6 +1,6 @@
 name: widget_utilities
 description: "Coleção de widgets customizados para facilitar a criação do layout da aplicação Flutter."
-version: 0.1.6
+version: 0.1.7
 homepage: https://github.com/rafaellfx/widget_utilities
 repository: https://github.com/rafaellfx/widget_utilities
 issue_tracker: https://github.com/rafaellfx/widget_utilities/issues

@@ -1,3 +1,8 @@
+## 0.1.7
+
+* Adiciona overlay de mira (foco) ao painel do `ScannerTextInput`: colchetes amarelos nos cantos da área de leitura para guiar o enquadramento da câmera.
+* O overlay aparece apenas quando a câmera está inicializada e não interfere nas interações do painel.
+
 ## 0.1.6
 
 * Adiciona suporte opcional a leitura de **códigos de barra 1D/2D e QR Code** em `ScannerTextInput` via novo enum `ScannerMode` (`text`, `barcode`, `textAndBarcode`).
