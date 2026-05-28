@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -312,7 +313,12 @@ class _ScannerPanelState extends State<_ScannerPanel>
       activeCamera,
     );
     if (inputImage == null) return;
-    unawaited(_viewModel.processFrame(inputImage));
+    unawaited(
+      _viewModel.processFrame(
+        inputImage,
+        lensDirection: activeCamera.lensDirection,
+      ),
+    );
   }
 
   InputImage? _buildInputImageFromCameraImage(
@@ -396,7 +402,8 @@ class _ScannerPanelState extends State<_ScannerPanel>
           fit: StackFit.expand,
           children: [
             _buildCameraLayer(),
-            if (_showFocusFrame) const Center(child: _FocusFrameOverlay()),
+            if (_showFocusFrame)
+              Positioned.fill(child: _FocusOverlay(viewModel: _viewModel)),
             const Positioned(
               top: 6,
               left: 0,
@@ -455,7 +462,29 @@ class _ScannerPanelState extends State<_ScannerPanel>
       return const SizedBox.shrink();
     }
 
-    return CameraPreview(controller);
+    final previewSize = controller.value.previewSize;
+    if (previewSize == null) {
+      return CameraPreview(controller);
+    }
+
+    // O bottom sheet é exibido em retrato; a prévia precisa cobrir o painel
+    // com o mesmo cover usado pelo overlay para que os colchetes fiquem
+    // alinhados com a imagem real.
+    final uprightDisplaySize = previewSize.width >= previewSize.height
+        ? Size(previewSize.height, previewSize.width)
+        : previewSize;
+
+    return ClipRect(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          width: uprightDisplaySize.width,
+          height: uprightDisplaySize.height,
+          child: CameraPreview(controller),
+        ),
+      ),
+    );
   }
 }
 
@@ -477,100 +506,213 @@ class _DragHandle extends StatelessWidget {
   }
 }
 
-class _FocusFrameOverlay extends StatelessWidget {
-  const _FocusFrameOverlay();
+const Color _focusFrameColor = Color(0xFFFFD400);
 
-  static const Color _frameColor = Color(0xFFFFD400);
-  static const double _frameWidthFraction = 0.72;
-  static const double _frameAspectRatio = 1.6;
+/// Overlay que acompanha o view model: desenha colchetes amarelos ao redor da
+/// palavra focada (a mais próxima do centro) e, quando não há palavra no
+/// quadro, exibe o quadro central estático como guia de enquadramento.
+class _FocusOverlay extends StatelessWidget {
+  const _FocusOverlay({required this.viewModel});
+
+  final _ScannerViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final frameWidth = constraints.maxWidth * _frameWidthFraction;
-        final frameHeight = frameWidth / _frameAspectRatio;
-        return IgnorePointer(
-          child: CustomPaint(
-            size: Size(frameWidth, frameHeight),
-            painter: _FocusFramePainter(color: _frameColor),
-          ),
-        );
-      },
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: viewModel,
+        builder: (context, _) {
+          return CustomPaint(
+            size: Size.infinite,
+            painter: _FocusFramePainter(
+              color: _focusFrameColor,
+              focusedWord: viewModel.focusedWord,
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
+/// Dimensões da imagem já rotacionada para a orientação de exibição.
+Size _uprightImageSize(Size imageSize, InputImageRotation rotation) {
+  if (rotation == InputImageRotation.rotation90deg ||
+      rotation == InputImageRotation.rotation270deg) {
+    return Size(imageSize.height, imageSize.width);
+  }
+  return imageSize;
+}
+
+/// Converte uma caixa em coordenadas do buffer (convenção ML Kit, rotation=0)
+/// para o espaço "upright" (imagem já rotacionada para exibição).
+Rect _bufferRectToUprightRect(
+  Rect boundingBox,
+  Size imageSize,
+  InputImageRotation rotation,
+  CameraLensDirection lensDirection,
+) {
+  final bufferWidth = imageSize.width;
+  final bufferHeight = imageSize.height;
+
+  Offset mapPoint(double bufferX, double bufferY) {
+    switch (rotation) {
+      case InputImageRotation.rotation90deg:
+        return Offset(bufferHeight - bufferY, bufferX);
+      case InputImageRotation.rotation270deg:
+        return Offset(bufferY, bufferWidth - bufferX);
+      case InputImageRotation.rotation180deg:
+        return Offset(bufferWidth - bufferX, bufferHeight - bufferY);
+      case InputImageRotation.rotation0deg:
+        return Offset(bufferX, bufferY);
+    }
+  }
+
+  final corners = <Offset>[
+    mapPoint(boundingBox.left, boundingBox.top),
+    mapPoint(boundingBox.right, boundingBox.top),
+    mapPoint(boundingBox.right, boundingBox.bottom),
+    mapPoint(boundingBox.left, boundingBox.bottom),
+  ];
+
+  var minX = double.infinity;
+  var minY = double.infinity;
+  var maxX = double.negativeInfinity;
+  var maxY = double.negativeInfinity;
+  for (final corner in corners) {
+    minX = math.min(minX, corner.dx);
+    minY = math.min(minY, corner.dy);
+    maxX = math.max(maxX, corner.dx);
+    maxY = math.max(maxY, corner.dy);
+  }
+  var uprightRect = Rect.fromLTRB(minX, minY, maxX, maxY);
+
+  // Câmera frontal espelha horizontalmente.
+  if (lensDirection == CameraLensDirection.front) {
+    final uprightWidth = _uprightImageSize(imageSize, rotation).width;
+    uprightRect = Rect.fromLTRB(
+      uprightWidth - uprightRect.right,
+      uprightRect.top,
+      uprightWidth - uprightRect.left,
+      uprightRect.bottom,
+    );
+  }
+  return uprightRect;
+}
+
+/// Aplica cover-fit uniforme de [uprightRect] (no espaço de [uprightSize]) para
+/// o painel de tamanho [panelSize], igual ao usado na prévia da câmera.
+Rect _coverRectToPanel(Rect uprightRect, Size uprightSize, Size panelSize) {
+  final scale = math.max(
+    panelSize.width / uprightSize.width,
+    panelSize.height / uprightSize.height,
+  );
+  final offsetX = (panelSize.width - uprightSize.width * scale) / 2;
+  final offsetY = (panelSize.height - uprightSize.height * scale) / 2;
+  return Rect.fromLTRB(
+    offsetX + uprightRect.left * scale,
+    offsetY + uprightRect.top * scale,
+    offsetX + uprightRect.right * scale,
+    offsetY + uprightRect.bottom * scale,
+  );
+}
+
 class _FocusFramePainter extends CustomPainter {
-  const _FocusFramePainter({required this.color});
+  const _FocusFramePainter({required this.color, this.focusedWord});
 
   final Color color;
+  final _FocusedWord? focusedWord;
 
   static const double _cornerLength = 28;
   static const double _strokeWidth = 4;
+  // Quadro central de fallback quando nenhuma palavra está focada.
+  static const double _centerFrameWidthFraction = 0.72;
+  static const double _centerFrameAspectRatio = 1.6;
+  // Folga ao redor da palavra focada.
+  static const double _wordPadding = 8;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final targetRect = _resolveTargetRect(size);
+    if (targetRect == null) return;
+    _drawCornerBrackets(canvas, targetRect);
+  }
+
+  Rect? _resolveTargetRect(Size panelSize) {
+    final word = focusedWord;
+    if (word == null) {
+      final frameWidth = panelSize.width * _centerFrameWidthFraction;
+      final frameHeight = frameWidth / _centerFrameAspectRatio;
+      return Rect.fromLTWH(
+        (panelSize.width - frameWidth) / 2,
+        (panelSize.height - frameHeight) / 2,
+        frameWidth,
+        frameHeight,
+      );
+    }
+
+    final uprightSize = _uprightImageSize(word.imageSize, word.rotation);
+    if (uprightSize.width <= 0 || uprightSize.height <= 0) return null;
+    final uprightRect = _bufferRectToUprightRect(
+      word.boundingBoxInImage,
+      word.imageSize,
+      word.rotation,
+      word.lensDirection,
+    );
+    final panelRect = _coverRectToPanel(uprightRect, uprightSize, panelSize);
+    return panelRect.inflate(_wordPadding);
+  }
+
+  void _drawCornerBrackets(Canvas canvas, Rect rect) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = _strokeWidth
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    final cornerLength = _cornerLength.clamp(0.0, size.shortestSide / 2);
+    final cornerLength = _cornerLength.clamp(0.0, rect.shortestSide / 2);
 
     // Canto superior esquerdo.
-    canvas.drawLine(
-      const Offset(0, 0),
-      Offset(cornerLength, 0),
-      paint,
-    );
-    canvas.drawLine(
-      const Offset(0, 0),
-      Offset(0, cornerLength),
-      paint,
-    );
-
+    canvas.drawLine(rect.topLeft, rect.topLeft + Offset(cornerLength, 0), paint);
+    canvas.drawLine(rect.topLeft, rect.topLeft + Offset(0, cornerLength), paint);
     // Canto superior direito.
     canvas.drawLine(
-      Offset(size.width, 0),
-      Offset(size.width - cornerLength, 0),
+      rect.topRight,
+      rect.topRight + Offset(-cornerLength, 0),
       paint,
     );
     canvas.drawLine(
-      Offset(size.width, 0),
-      Offset(size.width, cornerLength),
+      rect.topRight,
+      rect.topRight + Offset(0, cornerLength),
       paint,
     );
-
     // Canto inferior esquerdo.
     canvas.drawLine(
-      Offset(0, size.height),
-      Offset(cornerLength, size.height),
+      rect.bottomLeft,
+      rect.bottomLeft + Offset(cornerLength, 0),
       paint,
     );
     canvas.drawLine(
-      Offset(0, size.height),
-      Offset(0, size.height - cornerLength),
+      rect.bottomLeft,
+      rect.bottomLeft + Offset(0, -cornerLength),
       paint,
     );
-
     // Canto inferior direito.
     canvas.drawLine(
-      Offset(size.width, size.height),
-      Offset(size.width - cornerLength, size.height),
+      rect.bottomRight,
+      rect.bottomRight + Offset(-cornerLength, 0),
       paint,
     );
     canvas.drawLine(
-      Offset(size.width, size.height),
-      Offset(size.width, size.height - cornerLength),
+      rect.bottomRight,
+      rect.bottomRight + Offset(0, -cornerLength),
       paint,
     );
   }
 
   @override
   bool shouldRepaint(_FocusFramePainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.focusedWord != focusedWord;
 }
 
 class _CloseButton extends StatelessWidget {
@@ -672,9 +814,36 @@ class _RecognitionResult {
   final bool isBarcode;
 }
 
+/// Um item reconhecido em um quadro: texto e a caixa delimitadora em
+/// coordenadas do buffer da imagem (convenção do ML Kit, rotation=0).
+class _RecognizedItem {
+  const _RecognizedItem({required this.text, required this.boundingBox});
+
+  final String text;
+  final Rect boundingBox;
+}
+
+/// Palavra atualmente focada (mais próxima do centro), com a geometria
+/// necessária para o overlay projetá-la na tela.
+class _FocusedWord {
+  const _FocusedWord({
+    required this.text,
+    required this.boundingBoxInImage,
+    required this.imageSize,
+    required this.rotation,
+    required this.lensDirection,
+  });
+
+  final String text;
+  final Rect boundingBoxInImage;
+  final Size imageSize;
+  final InputImageRotation rotation;
+  final CameraLensDirection lensDirection;
+}
+
 abstract class _FrameRecognitionService {
   bool get producesBarcodes;
-  Future<List<String>> recognize(InputImage image);
+  Future<List<_RecognizedItem>> recognize(InputImage image);
   Future<void> dispose();
 }
 
@@ -688,15 +857,21 @@ class _MlKitTextRecognitionService implements _FrameRecognitionService {
   bool get producesBarcodes => false;
 
   @override
-  Future<List<String>> recognize(InputImage image) async {
+  Future<List<_RecognizedItem>> recognize(InputImage image) async {
     final recognitionResult = await _textRecognizer.processImage(image);
-    final recognizedLines = <String>[];
+    final recognizedWords = <_RecognizedItem>[];
     for (final block in recognitionResult.blocks) {
       for (final line in block.lines) {
-        recognizedLines.add(line.text);
+        for (final element in line.elements) {
+          final wordText = element.text.trim();
+          if (wordText.isEmpty) continue;
+          recognizedWords.add(
+            _RecognizedItem(text: wordText, boundingBox: element.boundingBox),
+          );
+        }
       }
     }
-    return recognizedLines;
+    return recognizedWords;
   }
 
   @override
@@ -712,15 +887,20 @@ class _MlKitBarcodeRecognitionService implements _FrameRecognitionService {
   bool get producesBarcodes => true;
 
   @override
-  Future<List<String>> recognize(InputImage image) async {
+  Future<List<_RecognizedItem>> recognize(InputImage image) async {
     final detectedBarcodes = await _barcodeScanner.processImage(image);
-    final decodedValues = <String>[];
+    final decodedValues = <_RecognizedItem>[];
     for (final barcode in detectedBarcodes) {
       final rawValue = barcode.rawValue ?? barcode.displayValue;
       if (rawValue == null) continue;
       final trimmedValue = rawValue.trim();
       if (trimmedValue.isEmpty) continue;
-      decodedValues.add(trimmedValue);
+      decodedValues.add(
+        _RecognizedItem(
+          text: trimmedValue,
+          boundingBox: barcode.boundingBox,
+        ),
+      );
     }
     return decodedValues;
   }
@@ -736,41 +916,39 @@ class _ScannerViewModel extends ChangeNotifier {
 
   final List<_FrameRecognitionService> _recognitionServices;
 
+  // Ignora caixas minúsculas (ruído) na escolha da palavra central.
+  static const double _minWordAreaFraction = 0.0005;
+
   bool _isDisposed = false;
   bool _isProcessingFrame = false;
   String? _previewText;
   _RecognitionResult? _latestResult;
+  _FocusedWord? _focusedWord;
 
   String? get previewText => _previewText;
   _RecognitionResult? get latestResult => _latestResult;
+  _FocusedWord? get focusedWord => _focusedWord;
   bool get hasRecognizedText =>
       _previewText != null && _previewText!.trim().isNotEmpty;
 
-  Future<void> processFrame(InputImage cameraInputImage) async {
+  Future<void> processFrame(
+    InputImage cameraInputImage, {
+    required CameraLensDirection lensDirection,
+  }) async {
     if (_isDisposed || _isProcessingFrame) return;
     _isProcessingFrame = true;
     try {
       for (final service in _recognitionServices) {
         if (_isDisposed) return;
-        final candidates = await service.recognize(cameraInputImage);
-        final bestCandidate = service.producesBarcodes
-            ? _pickFirstNonEmpty(candidates)
-            : _pickLongestCandidate(candidates);
-        if (bestCandidate == null) continue;
+        final recognizedItems = await service.recognize(cameraInputImage);
         if (_isDisposed) return;
-        final previousResult = _latestResult;
-        final hasChanged =
-            previousResult == null ||
-            previousResult.value != bestCandidate ||
-            previousResult.isBarcode != service.producesBarcodes;
-        if (!hasChanged) return;
-        _latestResult = _RecognitionResult(
-          value: bestCandidate,
-          isBarcode: service.producesBarcodes,
-        );
-        _previewText = bestCandidate;
-        notifyListeners();
-        return;
+        if (service.producesBarcodes) {
+          if (_applyBarcodeResult(recognizedItems)) return;
+          continue;
+        }
+        if (_applyFocusedWord(recognizedItems, cameraInputImage, lensDirection)) {
+          return;
+        }
       }
     } catch (_) {
       // Frames inválidos ou erros transitórios do ML Kit não interrompem a câmera.
@@ -779,27 +957,91 @@ class _ScannerViewModel extends ChangeNotifier {
     }
   }
 
-  String? _pickLongestCandidate(List<String> candidates) {
-    String? bestCandidate;
-    var bestNonWhitespaceLength = 0;
-    for (final rawCandidate in candidates) {
-      final trimmedCandidate = rawCandidate.trim();
-      if (trimmedCandidate.isEmpty) continue;
-      final nonWhitespaceLength = trimmedCandidate
-          .replaceAll(RegExp(r'\s+'), '')
-          .length;
-      if (nonWhitespaceLength > bestNonWhitespaceLength) {
-        bestCandidate = trimmedCandidate;
-        bestNonWhitespaceLength = nonWhitespaceLength;
-      }
+  bool _applyBarcodeResult(List<_RecognizedItem> recognizedItems) {
+    final firstValue = _pickFirstNonEmpty(recognizedItems);
+    if (firstValue == null) return false;
+    final previousResult = _latestResult;
+    final hasChanged =
+        previousResult == null ||
+        previousResult.value != firstValue ||
+        !previousResult.isBarcode;
+    if (hasChanged) {
+      _latestResult = _RecognitionResult(value: firstValue, isBarcode: true);
+      _previewText = firstValue;
+      _focusedWord = null;
+      notifyListeners();
     }
-    return bestCandidate;
+    return true;
   }
 
-  String? _pickFirstNonEmpty(List<String> candidates) {
-    for (final rawCandidate in candidates) {
-      final trimmedCandidate = rawCandidate.trim();
-      if (trimmedCandidate.isNotEmpty) return trimmedCandidate;
+  bool _applyFocusedWord(
+    List<_RecognizedItem> recognizedItems,
+    InputImage cameraInputImage,
+    CameraLensDirection lensDirection,
+  ) {
+    final imageSize = cameraInputImage.metadata?.size;
+    final rotation = cameraInputImage.metadata?.rotation;
+    if (imageSize == null || rotation == null) return false;
+
+    final nearestWord = _pickWordNearestCenter(recognizedItems, imageSize);
+    if (nearestWord == null) {
+      // Sem palavra no quadro: limpa só o overlay e preserva o previewText
+      // para o botão "Inserir" continuar utilizável.
+      if (_focusedWord != null) {
+        _focusedWord = null;
+        notifyListeners();
+      }
+      return false;
+    }
+
+    final hasChanged =
+        _focusedWord == null ||
+        _focusedWord!.boundingBoxInImage != nearestWord.boundingBox ||
+        _focusedWord!.text != nearestWord.text;
+    if (hasChanged) {
+      _focusedWord = _FocusedWord(
+        text: nearestWord.text,
+        boundingBoxInImage: nearestWord.boundingBox,
+        imageSize: imageSize,
+        rotation: rotation,
+        lensDirection: lensDirection,
+      );
+      _latestResult = _RecognitionResult(
+        value: nearestWord.text,
+        isBarcode: false,
+      );
+      _previewText = nearestWord.text;
+      notifyListeners();
+    }
+    return true;
+  }
+
+  _RecognizedItem? _pickWordNearestCenter(
+    List<_RecognizedItem> recognizedItems,
+    Size imageSize,
+  ) {
+    final imageCenter = Offset(imageSize.width / 2, imageSize.height / 2);
+    final minWordArea =
+        imageSize.width * imageSize.height * _minWordAreaFraction;
+    _RecognizedItem? nearestWord;
+    var smallestDistance = double.infinity;
+    for (final item in recognizedItems) {
+      final boundingBox = item.boundingBox;
+      if (boundingBox.width <= 0 || boundingBox.height <= 0) continue;
+      if (boundingBox.width * boundingBox.height < minWordArea) continue;
+      final distanceToCenter = (boundingBox.center - imageCenter).distance;
+      if (distanceToCenter < smallestDistance) {
+        smallestDistance = distanceToCenter;
+        nearestWord = item;
+      }
+    }
+    return nearestWord;
+  }
+
+  String? _pickFirstNonEmpty(List<_RecognizedItem> recognizedItems) {
+    for (final item in recognizedItems) {
+      final trimmedValue = item.text.trim();
+      if (trimmedValue.isNotEmpty) return trimmedValue;
     }
     return null;
   }
