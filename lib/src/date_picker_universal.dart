@@ -53,9 +53,26 @@ const double _inputFormPortraitHeight = 98.0;
 const double _inputFormLandscapeHeight = 108.0;
 const double _kMaxTextScaleFactor = 1.3;
 
+/// Date picker customizado baseado no `showDatePicker` do Flutter.
+///
+/// Mantém compatibilidade com todos os parâmetros do `showDatePicker`
+/// oficial e adiciona o parâmetro [show.addButtonToday], que exibe um
+/// botão "Hoje" no rodapé do diálogo. Ao tocar nesse botão, o seletor
+/// retorna a data corrente e fecha automaticamente.
+///
+/// Para detalhes sobre os demais parâmetros, consulte a documentação
+/// oficial do `showDatePicker` em
+/// https://api.flutter.dev/flutter/material/showDatePicker.html.
 class DatePickerUniversal {
   DatePickerUniversal._();
 
+  /// Exibe o diálogo do date picker e retorna a data escolhida, ou `null`
+  /// se o usuário cancelar.
+  ///
+  /// O parâmetro [addButtonToday] (padrão `true`) controla a presença do
+  /// botão "Hoje" no rodapé do diálogo, que é o único diferencial deste
+  /// picker em relação ao `showDatePicker` do Flutter. Quando `false`,
+  /// o comportamento e a aparência são idênticos ao do Flutter.
   static Future<DateTime?> show(
     BuildContext context, {
     DateTime? initialDate,
@@ -1834,9 +1851,7 @@ class _CalendarRangePickerDialog extends StatelessWidget {
     final Color? headerForeground =
         themeData.rangePickerHeaderForegroundColor ??
         defaults.rangePickerHeaderForegroundColor;
-    final Color? headerDisabledForeground = headerForeground?.withValues(
-      alpha: .38,
-    );
+    final Color? headerDisabledForeground = headerForeground?.withAlpha(97);
     final TextStyle? headlineStyle =
         themeData.rangePickerHeaderHeadlineStyle ??
         defaults.rangePickerHeaderHeadlineStyle;
@@ -2791,7 +2806,7 @@ class _MonthItemState extends State<_MonthItem> {
       );
     } else if (isDisabled) {
       itemStyle = textTheme.bodyMedium?.apply(
-        color: colorScheme.onSurface.withValues(alpha: .38),
+        color: colorScheme.onSurface.withAlpha(97),
       );
     } else if (DateUtils.isSameDay(widget.currentDate, dayToBuild)) {
       // The current day gets a different text color and a circle stroke

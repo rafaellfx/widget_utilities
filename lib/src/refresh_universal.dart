@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 
-/// RefreshUniversal é um [StatelessWidget] que utiliza dos recursos
-/// do [RefreshIndicator] com uma pequena diferença, permite adicionar
-/// um filho (child) sem necessitar de um Scroll, ou seja adiciona
-///  o pull to refresh em qual quer widget.
-
+/// Wrapper de pull-to-refresh que funciona com qualquer widget, scrollable
+/// ou não.
+///
+/// Quando o [child] já é um widget naturalmente rolável (`ListView`,
+/// `GridView`, `SingleChildScrollView`, `CustomScrollView`, `PageView`,
+/// `NestedScrollView` ou `ScrollView`), o widget apenas o envolve com um
+/// [RefreshIndicator]. Caso contrário, ele cria um `SingleChildScrollView`
+/// com `AlwaysScrollableScrollPhysics` e altura mínima igual ao espaço
+/// disponível, garantindo que o gesto de puxar funcione mesmo em conteúdos
+/// curtos ou estáticos.
 class RefreshUniversal extends StatelessWidget {
+  /// Conteúdo a ser exibido dentro do refresh.
   final Widget child;
+
+  /// Callback assíncrono invocado quando o usuário puxa para atualizar.
+  /// Deve completar quando o trabalho de refresh terminar.
   final Future<void> Function() onRefresh;
 
   const RefreshUniversal({
@@ -35,7 +44,7 @@ class RefreshUniversal extends StatelessWidget {
 
     // Caso não seja, envolvemos com SingleChildScrollView e AlwaysScrollableScrollPhysics
     return LayoutBuilder(
-      builder: (_, constrains) {
+      builder: (_, constraints) {
         return RefreshIndicator(
           onRefresh: onRefresh,
           child: ScrollConfiguration(
@@ -44,8 +53,8 @@ class RefreshUniversal extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: constrains.maxHeight,
-                  minWidth: constrains.maxWidth,
+                  minHeight: constraints.maxHeight,
+                  minWidth: constraints.maxWidth,
                 ),
                 child: child,
               ),
