@@ -1,3 +1,9 @@
+## 0.1.8
+
+* Foco dinâmico de texto no `ScannerTextInput` (estilo Live Text do iOS): os colchetes amarelos passam a grudar na palavra mais próxima do centro da mira e a acompanham conforme a câmera se move.
+* A palavra focada vira o texto candidato exibido no preview e inserido ao tocar em "Inserir" (substitui a seleção pela linha mais longa no modo texto).
+* Quando não há texto no quadro, o overlay volta ao quadro central estático como guia de enquadramento.
+
 ## 0.1.7
 
 * Adiciona overlay de mira (foco) ao painel do `ScannerTextInput`: colchetes amarelos nos cantos da área de leitura para guiar o enquadramento da câmera.

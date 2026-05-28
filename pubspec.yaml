@@ -1,6 +1,6 @@
 name: widget_utilities
-description: "Coleção de widgets customizados para facilitar a criação do layout da aplicação Flutter."
-version: 0.1.7
+description: "Coleção de widgets utilitários para Flutter: scanner de texto e código de barras/QR com OCR, date picker e pull-to-refresh universais."
+version: 0.1.8
 homepage: https://github.com/rafaellfx/widget_utilities
 repository: https://github.com/rafaellfx/widget_utilities
 issue_tracker: https://github.com/rafaellfx/widget_utilities/issues
@@ -9,10 +9,10 @@ license: BSD-3-Clause
 
 topics:
   - widgets
+  - scanner
+  - ocr
+  - barcode
   - date-picker
-  - refresh
-  - ui
-  - utilities
 
 platforms:
   android:
