@@ -908,8 +908,8 @@ class _DatePickerDialogState extends State<DatePickerDialog>
 class _RestorableDatePickerEntryMode
     extends RestorableValue<DatePickerEntryMode> {
   _RestorableDatePickerEntryMode(
-    DatePickerEntryMode defaultValue,
-  ) : defaultValue = defaultValue;
+    this.defaultValue,
+  );
 
   final DatePickerEntryMode defaultValue;
 
@@ -935,8 +935,8 @@ class _RestorableDatePickerEntryMode
 // This serializes each entry as a unique `int` value.
 class _RestorableAutovalidateMode extends RestorableValue<AutovalidateMode> {
   _RestorableAutovalidateMode(
-    AutovalidateMode defaultValue,
-  ) : defaultValue = defaultValue;
+    this.defaultValue,
+  );
 
   final AutovalidateMode defaultValue;
 
