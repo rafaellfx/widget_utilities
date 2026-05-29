@@ -624,7 +624,12 @@ class _FocusFramePainter extends CustomPainter {
   final _FocusedWord? focusedWord;
 
   static const double _cornerLength = 28;
-  static const double _strokeWidth = 4;
+  static const double _strokeWidth = 3;
+  // Raio da dobra arredondada dos cantos.
+  static const double _cornerRadius = 6;
+  // Opacidade do traço (mais sutil) e do realce sobre a palavra.
+  static const double _strokeOpacity = 0.85;
+  static const double _highlightOpacity = 0.18;
   // Quadro central de fallback quando nenhuma palavra está focada.
   static const double _centerFrameWidthFraction = 0.72;
   static const double _centerFrameAspectRatio = 1.6;
@@ -635,7 +640,22 @@ class _FocusFramePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final targetRect = _resolveTargetRect(size);
     if (targetRect == null) return;
+    // Realce translúcido apenas sobre a palavra focada (clareia a seleção),
+    // nunca no quadro central de fallback.
+    if (focusedWord != null) {
+      _drawHighlight(canvas, targetRect);
+    }
     _drawCornerBrackets(canvas, targetRect);
+  }
+
+  void _drawHighlight(Canvas canvas, Rect rect) {
+    final highlightPaint = Paint()
+      ..color = color.withValues(alpha: _highlightOpacity)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(_cornerRadius)),
+      highlightPaint,
+    );
   }
 
   Rect? _resolveTargetRect(Size panelSize) {
@@ -665,49 +685,39 @@ class _FocusFramePainter extends CustomPainter {
 
   void _drawCornerBrackets(Canvas canvas, Rect rect) {
     final paint = Paint()
-      ..color = color
+      ..color = color.withValues(alpha: _strokeOpacity)
       ..strokeWidth = _strokeWidth
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
-    final cornerLength = _cornerLength.clamp(0.0, rect.shortestSide / 2);
+    final armLength = _cornerLength.clamp(0.0, rect.shortestSide / 2);
 
-    // Canto superior esquerdo.
-    canvas.drawLine(rect.topLeft, rect.topLeft + Offset(cornerLength, 0), paint);
-    canvas.drawLine(rect.topLeft, rect.topLeft + Offset(0, cornerLength), paint);
-    // Canto superior direito.
-    canvas.drawLine(
-      rect.topRight,
-      rect.topRight + Offset(-cornerLength, 0),
-      paint,
-    );
-    canvas.drawLine(
-      rect.topRight,
-      rect.topRight + Offset(0, cornerLength),
-      paint,
-    );
-    // Canto inferior esquerdo.
-    canvas.drawLine(
-      rect.bottomLeft,
-      rect.bottomLeft + Offset(cornerLength, 0),
-      paint,
-    );
-    canvas.drawLine(
-      rect.bottomLeft,
-      rect.bottomLeft + Offset(0, -cornerLength),
-      paint,
-    );
-    // Canto inferior direito.
-    canvas.drawLine(
-      rect.bottomRight,
-      rect.bottomRight + Offset(-cornerLength, 0),
-      paint,
-    );
-    canvas.drawLine(
-      rect.bottomRight,
-      rect.bottomRight + Offset(0, -cornerLength),
-      paint,
-    );
+    canvas.drawPath(_buildCornerPath(rect.topLeft, 1, 1, armLength), paint);
+    canvas.drawPath(_buildCornerPath(rect.topRight, -1, 1, armLength), paint);
+    canvas.drawPath(_buildCornerPath(rect.bottomLeft, 1, -1, armLength), paint);
+    canvas.drawPath(_buildCornerPath(rect.bottomRight, -1, -1, armLength), paint);
+  }
+
+  /// Desenha um canto em "L" com a dobra arredondada. [horizontalDirection] e
+  /// [verticalDirection] valem +1/-1 conforme o sentido de cada braço.
+  Path _buildCornerPath(
+    Offset corner,
+    double horizontalDirection,
+    double verticalDirection,
+    double armLength,
+  ) {
+    final clampedRadius = _cornerRadius.clamp(0.0, armLength);
+    return Path()
+      ..moveTo(corner.dx + horizontalDirection * armLength, corner.dy)
+      ..lineTo(corner.dx + horizontalDirection * clampedRadius, corner.dy)
+      ..quadraticBezierTo(
+        corner.dx,
+        corner.dy,
+        corner.dx,
+        corner.dy + verticalDirection * clampedRadius,
+      )
+      ..lineTo(corner.dx, corner.dy + verticalDirection * armLength);
   }
 
   @override

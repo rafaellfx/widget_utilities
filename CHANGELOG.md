@@ -1,3 +1,8 @@
+## 0.1.9
+
+* Ajuste visual do foco do `ScannerTextInput`: colchetes amarelos mais finos e com cantos levemente arredondados.
+* A palavra focada agora recebe um realce amarelo translúcido (clareia a seleção), aproximando o visual do Live Text do iOS.
+
 ## 0.1.8
 
 * Foco dinâmico de texto no `ScannerTextInput` (estilo Live Text do iOS): os colchetes amarelos passam a grudar na palavra mais próxima do centro da mira e a acompanham conforme a câmera se move.
