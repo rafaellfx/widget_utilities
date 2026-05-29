@@ -17,7 +17,7 @@ Aqui você encontra widgets prontos para uso, leves e fáceis de integrar, com p
 Adicione a dependência no seu `pubspec.yaml`:
 ```yaml
 dependencies:
-  widget_utilities: ^0.1.9
+  widget_utilities: ^0.1.10
 ```
 
 ## ⚙️ Importação
@@ -144,11 +144,18 @@ Code** via ML Kit, conforme o `ScannerMode` escolhido. Disponível em Android e 
 
 Modos disponíveis (`ScannerMode`):
 
-- `text` — apenas OCR de texto (padrão; comportamento legado).
+- `text` — OCR de texto (padrão). O foco prende a **frase (linha de texto) sob
+  a mira** e a escreve no campo **ao vivo**, em tempo real, conforme você
+  enquadra. Não há etapa de confirmação: encerre tocando em "Concluir" ou
+  fechando o painel — o último valor reconhecido permanece no campo.
 - `barcode` — apenas códigos de barra e QR Code; ao reconhecer, o modal fecha
   automaticamente.
 - `textAndBarcode` — ambos no mesmo painel; quando o usuário aponta para um
   código, ele tem prioridade sobre o texto.
+
+> 💡 Como o modo texto preenche o campo em tempo real, `onTextScanned` é
+> chamado a cada leitura estável (não apenas uma vez). Use-o para atribuir o
+> valor direto ao `controller`, como nos exemplos abaixo.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -202,26 +209,59 @@ class _ScannerExampleState extends State<ScannerExample> {
 > EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, Code 93, Codabar, ITF, PDF417
 > e Aztec.
 
-### Permissões de câmera
+### Requisitos e configuração
 
-No Android, adicione a permissão no `android/app/src/main/AndroidManifest.xml`:
+O scanner usa a câmera e o **Google ML Kit** (OCR de texto e leitura de
+códigos). Essas dependências nativas (`camera`, `google_mlkit_text_recognition`,
+`google_mlkit_barcode_scanning`) já acompanham o package — você **não** precisa
+declará-las no app. Basta configurar permissões e versões mínimas.
 
-```xml
-<uses-permission android:name="android.permission.CAMERA" />
-```
+#### Android
 
-O ML Kit também exige `minSdkVersion` 21 ou superior no Android.
+1. Permissão de câmera em `android/app/src/main/AndroidManifest.xml`, dentro da
+   tag `<manifest>`:
 
-No iOS, adicione a descrição no `ios/Runner/Info.plist`:
+   ```xml
+   <uses-permission android:name="android.permission.CAMERA" />
+   ```
 
-```xml
-<key>NSCameraUsageDescription</key>
-<string>Este app usa a câmera para reconhecer textos.</string>
-```
+2. **(Recomendado)** Pré-baixe os modelos do ML Kit na instalação do app, para o
+   primeiro uso não esperar o download. Adicione dentro de `<application>`:
 
-No iOS, o ML Kit exige deployment target `15.5` ou superior, Xcode 15.3+
-e Swift 5. Se o app usa `Podfile`, defina `platform :ios, '15.5'` e mantenha
-os pods com `IPHONEOS_DEPLOYMENT_TARGET = '15.5'`.
+   ```xml
+   <meta-data
+       android:name="com.google.mlkit.vision.DEPENDENCIES"
+       android:value="ocr,barcode" />
+   ```
+
+   Use `ocr` se só lê texto, `barcode` se só lê códigos, ou `ocr,barcode` para
+   ambos.
+
+3. `minSdkVersion` **21** ou superior em `android/app/build.gradle`.
+
+#### iOS
+
+1. Descrição de uso da câmera em `ios/Runner/Info.plist`:
+
+   ```xml
+   <key>NSCameraUsageDescription</key>
+   <string>Este app usa a câmera para reconhecer textos.</string>
+   ```
+
+2. Deployment target **15.5** ou superior (exigência do ML Kit), Xcode 15.3+ e
+   Swift 5. No `Podfile`, defina `platform :ios, '15.5'` e mantenha os pods com
+   `IPHONEOS_DEPLOYMENT_TARGET = '15.5'`.
+
+#### Plataformas suportadas
+
+| Plataforma     | Câmera / OCR | Código de barras / QR |
+|----------------|:------------:|:---------------------:|
+| Android        |      ✅      |          ✅           |
+| iOS            |      ✅      |          ✅           |
+| Web / Desktop  |      —       |           —           |
+
+Em web/desktop a API continua disponível para não quebrar o build, mas apenas
+exibe uma mensagem amigável e não altera o campo.
 
 
 

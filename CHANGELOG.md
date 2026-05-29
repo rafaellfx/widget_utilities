@@ -1,7 +1,23 @@
+## 0.1.10
+
+* O foco de texto do `ScannerTextInput` passa a prender a **frase (linha de texto) sob a mira** em vez do bloco/parágrafo inteiro, alinhando os colchetes amarelos exatamente sobre a linha enquadrada.
+* No modo texto, a frase reconhecida **preenche o campo de origem ao vivo**, em tempo real: `onTextScanned` é disparado a cada leitura estável, sem etapa de confirmação.
+* O botão "Inserir" dá lugar ao botão "Concluir", que apenas encerra o painel mantendo o último valor já entregue.
+* O painel inferior agora exibe a frase reconhecida atual como feedback (útil quando o campo de origem fica coberto pelo modal).
+* A escolha do foco reduz o viés por itens maiores para favorecer a linha realmente sob a mira.
+* Corrige a orientação das bordas amarelas do foco: as caixas do ML Kit já vêm no espaço orientado, então a rotação extra de eixos foi removida — uma linha de texto horizontal agora desenha o quadro na horizontal (e não mais "em pé"). A correção vale para o desenho do overlay e para a seleção da linha central, com tratamento distinto de Android e iOS.
+
 ## 0.1.9
 
+* Atualiza o painel do scanner conforme a referência do iCloud: bottom sheet compacto, botão "Inserir" pequeno centralizado e botão de fechar circular no topo direito.
 * Ajuste visual do foco do `ScannerTextInput`: colchetes amarelos mais finos e com cantos levemente arredondados.
-* A palavra focada agora recebe um realce amarelo translúcido (clareia a seleção), aproximando o visual do Live Text do iOS.
+* O OCR passa a focar blocos de texto/parágrafos em vez de palavras isoladas.
+* O foco de texto usa a união das linhas do bloco para alinhar melhor as bordas amarelas sobre a frase/parágrafo.
+* Remove o preenchimento amarelo translúcido do item focado, mantendo apenas as bordas.
+* O foco dinâmico passa a validar texto, tipo e proximidade da caixa antes de trocar de item, reduzindo saltos para palavras/códigos errados.
+* A escolha do foco passa a favorecer blocos maiores e ignora mais ruídos pequenos no OCR.
+* A troca de foco fica mais rápida, mantendo confirmação por frames consecutivos para evitar oscilação excessiva.
+* O overlay mantém o último foco por alguns frames quando a leitura oscila, evitando piscadas durante o enquadramento.
 
 ## 0.1.8
 
