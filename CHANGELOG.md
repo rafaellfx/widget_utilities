@@ -1,3 +1,7 @@
+## 0.1.11
+
+* O painel do `ScannerTextInput` agora é **redimensionável**: arrastando o puxador no topo, o usuário aumenta (até ~94% da tela) ou diminui (até a altura inicial) a área da câmera ao vivo. A altura inicial continua em ~34% da tela.
+
 ## 0.1.10
 
 * O foco de texto do `ScannerTextInput` passa a prender a **frase (linha de texto) sob a mira** em vez do bloco/parágrafo inteiro, alinhando os colchetes amarelos exatamente sobre a linha enquadrada.

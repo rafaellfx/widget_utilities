@@ -117,19 +117,19 @@ class ScannerTextInput {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      // O painel controla a própria altura e é redimensionável arrastando o
+      // puxador; desabilitamos o arraste do bottom sheet para que o gesto
+      // vertical ajuste o tamanho da câmera em vez de fechar o painel.
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withAlpha(64),
       builder: (modalContext) {
-        final modalHeight =
-            MediaQuery.of(modalContext).size.height * _modalHeightFraction;
-        return SizedBox(
-          height: modalHeight,
-          child: _ScannerPanel(
-            mode: mode,
-            autoConfirmBarcode: autoConfirmBarcode,
-            onTextRecognized: onTextScanned,
-            onClose: () => Navigator.of(modalContext).pop(),
-          ),
+        return _ScannerPanel(
+          mode: mode,
+          autoConfirmBarcode: autoConfirmBarcode,
+          initialHeightFraction: _modalHeightFraction,
+          onTextRecognized: onTextScanned,
+          onClose: () => Navigator.of(modalContext).pop(),
         );
       },
     );
@@ -151,12 +151,17 @@ class _ScannerPanel extends StatefulWidget {
   const _ScannerPanel({
     required this.mode,
     required this.autoConfirmBarcode,
+    required this.initialHeightFraction,
     required this.onTextRecognized,
     required this.onClose,
   });
 
   final ScannerMode mode;
   final bool autoConfirmBarcode;
+
+  /// Fração da altura da tela usada quando o painel abre. O usuário pode
+  /// aumentar/diminuir arrastando o puxador no topo.
+  final double initialHeightFraction;
 
   /// Chamado em tempo real a cada frase/código estável reconhecido, para
   /// preencher o campo de origem ao vivo.
@@ -178,6 +183,11 @@ class _ScannerPanelState extends State<_ScannerPanel>
     DeviceOrientation.landscapeRight: 270,
   };
 
+  // Limites de redimensionamento do painel ao arrastar o puxador: nunca
+  // menor que a altura inicial nem maior que quase a tela inteira.
+  static const double _minHeightFraction = 0.34;
+  static const double _maxHeightFraction = 0.94;
+
   CameraController? _cameraController;
   CameraDescription? _activeCamera;
   bool _isInitializing = true;
@@ -186,10 +196,18 @@ class _ScannerPanelState extends State<_ScannerPanel>
   bool _hasAutoConfirmed = false;
   String? _lastEmittedText;
 
+  /// Fração corrente da altura da tela ocupada pelo painel. Ajustada ao vivo
+  /// pelo arraste vertical do puxador.
+  late double _heightFraction;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _heightFraction = widget.initialHeightFraction.clamp(
+      _minHeightFraction,
+      _maxHeightFraction,
+    );
     _viewModel = _ScannerViewModel(
       recognitionServices: _buildRecognitionServices(widget.mode),
     );
@@ -404,40 +422,65 @@ class _ScannerPanelState extends State<_ScannerPanel>
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-      child: Container(
-        color: Colors.black,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildCameraLayer(),
-            if (_showFocusFrame)
-              Positioned.fill(child: _FocusOverlay(viewModel: _viewModel)),
-            const Positioned(
-              top: 6,
-              left: 0,
-              right: 0,
-              child: _DragHandle(),
-            ),
-            Positioned(
-              top: 12,
-              right: 12,
-              child: _CloseButton(onPressed: widget.onClose),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: _LivePreviewSection(
-                viewModel: _viewModel,
-                onDone: widget.onClose,
+    final screenHeight = MediaQuery.of(context).size.height;
+    return SizedBox(
+      height: screenHeight * _heightFraction,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        child: Container(
+          color: Colors.black,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildCameraLayer(),
+              if (_showFocusFrame)
+                Positioned.fill(child: _FocusOverlay(viewModel: _viewModel)),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: _handleResizeDrag,
+                  child: const Padding(
+                    padding: EdgeInsets.only(top: 6, bottom: 12),
+                    child: _DragHandle(),
+                  ),
+                ),
               ),
-            ),
-          ],
+              Positioned(
+                top: 12,
+                right: 12,
+                child: _CloseButton(onPressed: widget.onClose),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: _LivePreviewSection(
+                  viewModel: _viewModel,
+                  onDone: widget.onClose,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Ajusta a altura do painel conforme o arraste vertical do puxador:
+  /// arrastar para cima aumenta a câmera, para baixo diminui.
+  void _handleResizeDrag(DragUpdateDetails details) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    if (screenHeight <= 0) return;
+    setState(() {
+      final nextFraction = _heightFraction - details.delta.dy / screenHeight;
+      _heightFraction = nextFraction.clamp(
+        _minHeightFraction,
+        _maxHeightFraction,
+      );
+    });
   }
 
   bool get _showFocusFrame {
