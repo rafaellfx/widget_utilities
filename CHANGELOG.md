@@ -1,3 +1,7 @@
+## 0.1.12
+
+* Alinha a versão de `widget_utilities` referenciada no README (instruções de instalação) e no app de exemplo à release publicada, evitando que a página do pacote oriente o uso de uma versão antiga. Sem mudanças no código do pacote.
+
 ## 0.1.11
 
 * O painel do `ScannerTextInput` agora é **redimensionável**: arrastando o puxador no topo, o usuário aumenta (até ~94% da tela) ou diminui (até a altura inicial) a área da câmera ao vivo. A altura inicial continua em ~34% da tela.
